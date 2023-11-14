@@ -1,16 +1,21 @@
 package route
 
+import NetGraphAlgebraDefs.NodeObject
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives.*
 import akka.http.scaladsl.server.Route
 import service.GraphService
 import util.JsonFormat
-import model.MoveRequest
+import model.{MoveRequest, StateResponse, AdjacentNodesResponse}
+import org.slf4j.LoggerFactory
 
 object Routes extends SprayJsonSupport with JsonFormat {
-
+  private val logger = LoggerFactory.getLogger(Routes.getClass)
   private var copId: Option[String] = None
   private var thiefId: Option[String] = None
+  private var currentCopNode: Option[NodeObject] = None
+  private var currentThiefNode: Option[NodeObject] = None
   // store info about users like the player id for thief and cop
   // provide routes for setup, getting adjacent nodes, and moving
   // based on player id decide if cop or thief should move
@@ -18,18 +23,24 @@ object Routes extends SprayJsonSupport with JsonFormat {
     path("join") {
       post {
         parameter("playerId") { playerId =>
-          // if cop is 0 set copId to player id and return role of user as response
-          // if cop is set and thief is 0, set thiefId to playerId and return role of user as response
-          // in both cases, pick a random node in graph for user to start on
-          println(s"Player ID: ${playerId}")
           if (copId.isEmpty) {
+            logger.info(s"Assigned cop role to player id: ${playerId}")
             copId = Some(playerId)
-            complete(s"You are the cop")
+            currentCopNode = Some(GraphService.getRandomNode)
+            val response: StateResponse = StateResponse("Cop", currentCopNode.get.id)
+            complete(response)
           } else if (thiefId.isEmpty) {
-            thiefId = Some(playerId)
-            complete(s"you are the thief")
+            if (copId.get == playerId) {
+              complete(StatusCodes.BadRequest, "Id is not unique")
+            } else {
+              logger.info(s"Assigned thief role to player id: ${playerId}")
+              thiefId = Some(playerId)
+              currentThiefNode = Some(GraphService.getRandomNode)
+              val response: StateResponse = StateResponse("Thief", currentThiefNode.get.id)
+              complete(response)
+            }
           } else {
-            complete("Game is full")
+            complete(StatusCodes.Forbidden, "Game is full")
           }
         }
       }
@@ -49,7 +60,19 @@ object Routes extends SprayJsonSupport with JsonFormat {
         parameter("playerId") { playerId =>
           // get adjacent nodes from appropriate node and return list as a response
           println(s"Player ID: ${playerId}")
-          complete("")
+          if (playerId == copId.get) {
+            val adjacentNodes: Array[NodeObject] = GraphService.getAdjacentNodes(currentCopNode.get)
+            val response: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {AdjacentNodesResponse(node.id)})
+            complete(response)
+          } else if (playerId == thiefId.get) {
+            val adjacentNodes: Array[NodeObject] = GraphService.getAdjacentNodes(currentThiefNode.get)
+            val response: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {
+              AdjacentNodesResponse(node.id)
+            })
+            complete(response)
+          } else {
+            complete("")
+          }
         }
       }
     },
