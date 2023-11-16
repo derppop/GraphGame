@@ -7,73 +7,79 @@ import akka.http.scaladsl.server.Directives.*
 import akka.http.scaladsl.server.Route
 import service.GraphService
 import util.JsonFormat
-import model.{MoveRequest, StateResponse, AdjacentNodesResponse}
+import model.{AdjacentNodesResponse, GameStateResponse, JoinResponse, MoveRequest}
 import org.slf4j.LoggerFactory
 
 object Routes extends SprayJsonSupport with JsonFormat {
   private val logger = LoggerFactory.getLogger(Routes.getClass)
-  private var copId: Option[String] = None
-  private var thiefId: Option[String] = None
+
+  // game state vars
+  private var copExists: Boolean = false
+  private var thiefExists: Boolean = false
   private var currentCopNode: Option[NodeObject] = None
   private var currentThiefNode: Option[NodeObject] = None
+  private var winner: Option[String] = None
+
   // store info about users like the player id for thief and cop
   // provide routes for setup, getting adjacent nodes, and moving
   // based on player id decide if cop or thief should move
   val routes: Route = concat(
     path("join") {
       post {
-        parameter("playerId") { playerId =>
-          if (copId.isEmpty) {
-            logger.info(s"Assigned cop role to player id: ${playerId}")
-            copId = Some(playerId)
-            currentCopNode = Some(GraphService.getRandomNode)
-            val response: StateResponse = StateResponse("Cop", currentCopNode.get.id)
-            complete(response)
-          } else if (thiefId.isEmpty) {
-            if (copId.get == playerId) {
-              complete(StatusCodes.BadRequest, "Id is not unique")
+        parameter("role") { role =>
+          if (role == "cop") {
+            if (copExists) {
+              complete(StatusCodes.BadRequest, "cop role already full")
             } else {
-              logger.info(s"Assigned thief role to player id: ${playerId}")
-              thiefId = Some(playerId)
+              logger.info(s"Assigned cop role")
+              copExists = true
+              currentCopNode = Some(GraphService.getRandomNode)
+              val response: JoinResponse = JoinResponse("cop", currentCopNode.get.id)
+              complete(response)
+            }
+          } else if (role == "thief") {
+            if (thiefExists) {
+              complete(StatusCodes.BadRequest, "thief role already full")
+            } else {
+              logger.info(s"Assigned thief role")
+              thiefExists = true
               currentThiefNode = Some(GraphService.getRandomNode)
-              val response: StateResponse = StateResponse("Thief", currentThiefNode.get.id)
+              val response: JoinResponse = JoinResponse("thief", currentThiefNode.get.id)
               complete(response)
             }
           } else {
-            complete(StatusCodes.Forbidden, "Game is full")
+            complete(StatusCodes.BadRequest, "Invalid role, please choose \"cop\" or \"thief\" role")
           }
         }
       }
     },
     path("move") {
       post {
-        entity(as[MoveRequest]) {moveRequest =>
+        parameters("role", "destination") {(role, destination) =>
           // move player to adjacent node with same id specified in request
           // if node is not adjacent, response is an error
           var sourceNode:Option[NodeObject] = None
-          if (moveRequest.playerId == copId.get) {
+          if (role == "cop") {
             sourceNode = Some(currentCopNode.get)
-          } else if (moveRequest.playerId == thiefId.get) {
+          } else if (role == "thief") {
             sourceNode = Some(currentThiefNode.get)
           } else {
-            complete(StatusCodes.BadRequest, "User Id does not exist")
+            complete(StatusCodes.BadRequest, "Invalid role, please choose \"cop\" or \"thief\" role")
           }
-          val newNode: Option[NodeObject] = GraphService.canMove(sourceNode.get, moveRequest.destinationNode.toInt)
+          val newNode: Option[NodeObject] = GraphService.canMove(sourceNode.get, destination.toInt)
           if (newNode.isDefined) {
-            if (moveRequest.playerId == copId.get) {
+            if (role == "cop") {
               currentCopNode = Some(newNode.get)
               //if copNode == thiefNode, cop wins
               // if copNode == fakeNode, cop loses
-              val response: StateResponse = StateResponse("Cop", currentCopNode.get.id)
+              val response: JoinResponse = JoinResponse("cop", currentCopNode.get.id)
               complete(response)
-            } else if (moveRequest.playerId == thiefId.get) {
+            } else {
               currentThiefNode = Some(newNode.get)
               // if thiefNode has valuableData, thief wins
               // if thiefNode == fakeNode, thief loses
-              val response: StateResponse = StateResponse("Thief", currentThiefNode.get.id)
+              val response: JoinResponse = JoinResponse("thief", currentThiefNode.get.id)
               complete(response)
-            } else {
-              complete("")
             }
           } else {
             complete(StatusCodes.BadRequest, "Node not adjacent to you")
@@ -81,23 +87,22 @@ object Routes extends SprayJsonSupport with JsonFormat {
         }
       }
     },
-    path("getAdjacentNodes") {
+    path("state") {
       get {
-        parameter("playerId") { playerId =>
+        parameter("role") { role =>
           // get adjacent nodes from appropriate node and return list as a response
-          println(s"Player ID: ${playerId}")
-          if (playerId == copId.get) {
+          if (role == "cop") {
             val adjacentNodes: Array[NodeObject] = GraphService.getAdjacentNodes(currentCopNode.get)
-            val response: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {AdjacentNodesResponse(node.id)})
+            val adjacentNodesResponse: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {AdjacentNodesResponse(node.id)})
+            val response: GameStateResponse = GameStateResponse(currentCopNode.get.id, adjacentNodesResponse)
             complete(response)
-          } else if (playerId == thiefId.get) {
+          } else if (role == "thief") {
             val adjacentNodes: Array[NodeObject] = GraphService.getAdjacentNodes(currentThiefNode.get)
-            val response: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {
-              AdjacentNodesResponse(node.id)
-            })
+            val adjacentNodesResponse: Array[AdjacentNodesResponse] = adjacentNodes.map(node => {AdjacentNodesResponse(node.id)})
+            val response: GameStateResponse = GameStateResponse(currentThiefNode.get.id, adjacentNodesResponse)
             complete(response)
           } else {
-            complete("")
+            complete(StatusCodes.BadRequest, "Invalid role, please choose \"cop\" or \"thief\" role")
           }
         }
       }

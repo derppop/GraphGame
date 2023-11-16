@@ -19,7 +19,7 @@ object GraphService {
   }
 
   def getAdjacentNodes(node: NodeObject): Array[NodeObject] = {
-    perturbedGraph.sm.adjacentNodes(node).asScala.toArray
+    perturbedGraph.sm.successors(node).asScala.toArray
   }
 
   def canMove(sourceNode: NodeObject, destinationNodeId: Int): Option[NodeObject] = {
