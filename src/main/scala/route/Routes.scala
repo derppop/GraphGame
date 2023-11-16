@@ -50,7 +50,16 @@ object Routes extends SprayJsonSupport with JsonFormat {
         entity(as[MoveRequest]) {moveRequest =>
           // move player to adjacent node with same id specified in request
           // if node is not adjacent, response is an error
-          println(s"playerId: ${moveRequest.playerId} destinationNode: ${moveRequest.destinationNode}")
+          var sourceNode:Option[NodeObject] = None
+          if (moveRequest.playerId == copId.get) {
+            sourceNode = Some(currentCopNode.get)
+          } else if (moveRequest.playerId == thiefId.get) {
+            sourceNode = Some(currentThiefNode.get)
+          } else {
+            complete(StatusCodes.BadRequest, "User Id does not exist")
+          }
+
+//          if (GraphService.canMove())
           complete("")
         }
       }

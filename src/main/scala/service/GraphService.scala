@@ -23,6 +23,7 @@ object GraphService {
   }
 
   def canMove(sourceNode: NodeObject, destinationNode: NodeObject): Boolean = {
-    false
+    val adjacentNodes = getAdjacentNodes(sourceNode)
+    adjacentNodes.contains(destinationNode)
   }
 }
