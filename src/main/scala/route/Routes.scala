@@ -58,9 +58,26 @@ object Routes extends SprayJsonSupport with JsonFormat {
           } else {
             complete(StatusCodes.BadRequest, "User Id does not exist")
           }
-
-//          if (GraphService.canMove())
-          complete("")
+          val newNode: Option[NodeObject] = GraphService.canMove(sourceNode.get, moveRequest.destinationNode.toInt)
+          if (newNode.isDefined) {
+            if (moveRequest.playerId == copId.get) {
+              currentCopNode = Some(newNode.get)
+              //if copNode == thiefNode, cop wins
+              // if copNode == fakeNode, cop loses
+              val response: StateResponse = StateResponse("Cop", currentCopNode.get.id)
+              complete(response)
+            } else if (moveRequest.playerId == thiefId.get) {
+              currentThiefNode = Some(newNode.get)
+              // if thiefNode has valuableData, thief wins
+              // if thiefNode == fakeNode, thief loses
+              val response: StateResponse = StateResponse("Thief", currentThiefNode.get.id)
+              complete(response)
+            } else {
+              complete("")
+            }
+          } else {
+            complete(StatusCodes.BadRequest, "Node not adjacent to you")
+          }
         }
       }
     },

@@ -22,8 +22,16 @@ object GraphService {
     perturbedGraph.sm.adjacentNodes(node).asScala.toArray
   }
 
-  def canMove(sourceNode: NodeObject, destinationNode: NodeObject): Boolean = {
+  def canMove(sourceNode: NodeObject, destinationNodeId: Int): Option[NodeObject] = {
     val adjacentNodes = getAdjacentNodes(sourceNode)
-    adjacentNodes.contains(destinationNode)
+    adjacentNodes.foreach{ node =>
+      if (node.id == destinationNodeId) {
+        return Some(node)
+      }
+    }
+    None
+  }
+  def gameEnded(thiefNode: NodeObject, copNode: NodeObject): Boolean = {
+    thiefNode == copNode
   }
 }
