@@ -14,8 +14,10 @@ object GraphService {
   val originalNodes: Array[NodeObject] = originalGraph.sm.nodes().asScala.toArray
   val perturbedNodes: Array[NodeObject] = perturbedGraph.sm.nodes().asScala.toArray
 
-  def getRandomNode: NodeObject = {
-    perturbedNodes(Random.nextInt(perturbedNodes.length))
+  def getRandomNode: (Option[NodeObject], Option[NodeObject]) = {
+    val node: Option[NodeObject] = Some(perturbedNodes(Random.nextInt(perturbedNodes.length)))
+    val shadowNode: Option[NodeObject] = originalNodes.find(shadowNode => shadowNode.id == node.get.id)
+    (node, shadowNode)
   }
 
   def getAdjacentNodes(node: NodeObject): Array[NodeObject] = {
@@ -31,6 +33,7 @@ object GraphService {
     }
     None
   }
+
   def gameEnded(thiefNode: NodeObject, copNode: NodeObject): Boolean = {
     thiefNode == copNode
   }

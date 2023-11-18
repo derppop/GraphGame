@@ -17,8 +17,52 @@ object Routes extends SprayJsonSupport with JsonFormat {
   private var copExists: Boolean = false
   private var thiefExists: Boolean = false
   private var currentCopNode: Option[NodeObject] = None
+  private var copShadowNode: Option[NodeObject] = None
   private var currentThiefNode: Option[NodeObject] = None
+  private var thiefShadowNode: Option[NodeObject] = None
   private var winner: Option[String] = None
+
+  private def initializeRole(role: String): Unit = {
+    val randomNodes = GraphService.getRandomNode
+    if (role == "cop") {
+      currentCopNode = randomNodes._1
+      copShadowNode = randomNodes._2
+      logger.info(s"Assigned cop to node ${currentCopNode.get.id}")
+    } else if (role == "thief") {
+      currentThiefNode = randomNodes._1
+      thiefShadowNode = randomNodes._2
+      logger.info(s"Assigned thief to node ${currentThiefNode.get.id}")
+    } else {
+      logger.error("Tried initializing invalid role")
+    }
+
+    // make sure chosen nodes are valid
+    if (copExists && thiefExists) {
+      if (currentCopNode.get.id == currentThiefNode.get.id) {
+        logger.info("Started players at same node, finding new nodes")
+        if (role == "cop") {
+          initializeRole("cop")
+        } else if (role == "thief") {
+          initializeRole("thief")
+        }
+      } else if (currentThiefNode.get.valuableData) {
+        logger.info("Started thief at valuable data, finding new node")
+        initializeRole("thief")
+      } else if (GraphService.getAdjacentNodes(currentCopNode.get).length == 0) {
+        logger.info("Started cop at dead end, finding new node")
+        initializeRole("cop")
+      } else if (GraphService.getAdjacentNodes(currentThiefNode.get).length == 0) {
+        logger.info("Started thief at dead end, finding new node")
+        initializeRole("thief")
+      } else if (copShadowNode.isEmpty) {
+        logger.info("Started cop at invalid node, finding new node")
+        initializeRole("cop")
+      } else if (thiefShadowNode.isEmpty) {
+        logger.info("Started thief at invalid node, finding new node")
+        initializeRole("thief")
+      }
+    }
+  }
 
   // store info about users like the player id for thief and cop
   // provide routes for setup, getting adjacent nodes, and moving
@@ -31,9 +75,9 @@ object Routes extends SprayJsonSupport with JsonFormat {
             if (copExists) {
               complete(StatusCodes.BadRequest, "cop role already full")
             } else {
-              logger.info(s"Assigned cop role")
               copExists = true
-              currentCopNode = Some(GraphService.getRandomNode)
+              initializeRole("cop")
+
               val response: JoinResponse = JoinResponse("cop", currentCopNode.get.id)
               complete(response)
             }
@@ -41,9 +85,8 @@ object Routes extends SprayJsonSupport with JsonFormat {
             if (thiefExists) {
               complete(StatusCodes.BadRequest, "thief role already full")
             } else {
-              logger.info(s"Assigned thief role")
               thiefExists = true
-              currentThiefNode = Some(GraphService.getRandomNode)
+              initializeRole("thief")
               val response: JoinResponse = JoinResponse("thief", currentThiefNode.get.id)
               complete(response)
             }
@@ -56,33 +99,36 @@ object Routes extends SprayJsonSupport with JsonFormat {
     path("move") {
       post {
         parameters("role", "destination") {(role, destination) =>
-          // move player to adjacent node with same id specified in request
-          // if node is not adjacent, response is an error
-          var sourceNode:Option[NodeObject] = None
-          if (role == "cop") {
-            sourceNode = Some(currentCopNode.get)
-          } else if (role == "thief") {
-            sourceNode = Some(currentThiefNode.get)
-          } else {
-            complete(StatusCodes.BadRequest, "Invalid role, please choose \"cop\" or \"thief\" role")
-          }
-          val newNode: Option[NodeObject] = GraphService.canMove(sourceNode.get, destination.toInt)
-          if (newNode.isDefined) {
+          if (copExists && thiefExists) {
+            var sourceNode: Option[NodeObject] = None
             if (role == "cop") {
-              currentCopNode = Some(newNode.get)
-              //if copNode == thiefNode, cop wins
-              // if copNode == fakeNode, cop loses
-              val response: JoinResponse = JoinResponse("cop", currentCopNode.get.id)
-              complete(response)
+              sourceNode = Some(currentCopNode.get)
+            } else if (role == "thief") {
+              sourceNode = Some(currentThiefNode.get)
             } else {
-              currentThiefNode = Some(newNode.get)
-              // if thiefNode has valuableData, thief wins
-              // if thiefNode == fakeNode, thief loses
-              val response: JoinResponse = JoinResponse("thief", currentThiefNode.get.id)
-              complete(response)
+              complete(StatusCodes.BadRequest, "Invalid role, please choose \"cop\" or \"thief\" role")
+            }
+
+            val newNode: Option[NodeObject] = GraphService.canMove(sourceNode.get, destination.toInt)
+            if (newNode.isDefined) {
+              if (role == "cop") {
+                currentCopNode = Some(newNode.get)
+                //if copNode == thiefNode, cop wins
+                // if copNode == fakeNode, cop loses
+                val response: JoinResponse = JoinResponse("cop", currentCopNode.get.id)
+                complete(response)
+              } else {
+                currentThiefNode = Some(newNode.get)
+                // if thiefNode has valuableData, thief wins
+                // if thiefNode == fakeNode, thief loses
+                val response: JoinResponse = JoinResponse("thief", currentThiefNode.get.id)
+                complete(response)
+              }
+            } else {
+              complete(StatusCodes.BadRequest, "Node not adjacent to you")
             }
           } else {
-            complete(StatusCodes.BadRequest, "Node not adjacent to you")
+            complete(StatusCodes.BadRequest, "Both players must join before moving")
           }
         }
       }
