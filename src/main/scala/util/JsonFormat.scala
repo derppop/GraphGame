@@ -10,5 +10,5 @@ trait JsonFormat extends DefaultJsonProtocol {
   implicit val moveRequestFormat: RootJsonFormat[MoveRequest] = jsonFormat2(MoveRequest)
   implicit val joinResponseFormat: RootJsonFormat[JoinResponse] = jsonFormat2(JoinResponse)
   implicit val adjacentNodesResponseFormat: RootJsonFormat[AdjacentNodesResponse] = jsonFormat1(AdjacentNodesResponse)
-  implicit val gameStateResponseFormat: RootJsonFormat[GameStateResponse] = jsonFormat2(GameStateResponse)
+  implicit val gameStateResponseFormat: RootJsonFormat[GameStateResponse] = jsonFormat3(GameStateResponse)
 }
