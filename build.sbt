@@ -22,6 +22,7 @@ lazy val commonDependencies = Seq(
   "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion,
   "com.typesafe.akka" %% "akka-stream" % akkaVersion,
   "com.typesafe.akka" %% "akka-http-spray-json" % akkaHTTPVersion,
+  "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "org.scala-lang.modules" %% "scala-parallel-collections" % scalaParCollVersion,
   "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
   "org.scalatestplus" %% "mockito-4-2" % "3.2.12.0-RC2" % Test,
@@ -44,13 +45,18 @@ lazy val root = (project in file("."))
 
 Compile / run / mainClass := Some("app.Main")
 
+assembly / assemblyJarName := "graph-game.jar"
+
+assembly / mainClass := Some("app.Main")
+
 unmanagedBase := baseDirectory.value / "src" / "main" / "resources" / "lib"
 
 scalacOptions ++= Seq("-Ytasty-reader")
 
 libraryDependencies ++= commonDependencies
 
-assemblyMergeStrategy in assembly := {
+assembly / assemblyMergeStrategy := {
   case PathList("META-INF", _*) => MergeStrategy.discard
+  case "reference.conf"         => MergeStrategy.concat
   case _                        => MergeStrategy.first
 }

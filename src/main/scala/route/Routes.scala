@@ -8,7 +8,7 @@ import akka.http.scaladsl.server.Route
 import service.GraphService
 import service.GameStateService.*
 import util.JsonFormat
-import model.{AdjacentNodesResponse, GameStateResponse, JoinResponse, MoveRequest}
+import model.{AdjacentNodesResponse, GameStateResponse, MoveRequest}
 import org.slf4j.LoggerFactory
 import util.ResponseGenerator.generateResponse
 import scala.annotation.tailrec
@@ -21,7 +21,6 @@ object Routes extends SprayJsonSupport with JsonFormat {
     path("join") {
       post {
         parameter("role") { role =>
-          logger.info(s"Nodes with valuable data: ${perturbedNodes.find(n => n.valuableData).map(n => n.id)}")
           if (role == "cop") {
             if (copExists) {
               complete(StatusCodes.BadRequest, "cop role already full")
@@ -58,32 +57,36 @@ object Routes extends SprayJsonSupport with JsonFormat {
                   updatePosition(role, node)
 
                   if (role == "thief" && currentThiefNode.get.valuableData) { // thief finds valuable data
+                    logger.info("Thief won the game, they landed on valuable data")
                     winner = Some("thief")
                     winReason = Some("the thief found the valuable data!")
                     complete("You win! You found the valuable data")
                   } else if (role == "thief" && isDeadEnd(node)){ // thief ran into dead end
+                    logger.info("Thief lost the game, they ran into a dead end")
                     winner = Some("cop")
                     winReason = Some("the thief ran into a dead end!")
                     complete("You lose! You ran into a dead end")
                   } else if (role == "cop" && isDeadEnd(node)) { // cop ran into dead end
+                    logger.info("Cop lost the game, they ran into a dead end")
                     winner = Some("thief")
                     winReason = Some("the cop ran into a dead end!!")
                     complete("You lose! You ran into a dead end")
                   } else if (role == "cop" && (currentThiefNode.get.id == currentCopNode.get.id)) { // cop caught thief
+                    logger.info("Cop won the game, they caught the thief")
                     winner = Some("cop")
                     winReason = Some("the cop caught the thief!")
                     complete("You win! You caught the thief")
                   } else if (role == "cop" && !isMoveLegal(sourceNode.get, destination)) { // perturbed and original graph differ
+                    logger.info("Cop lost the game, they made a move not possible in original graph")
                     winner = Some("thief")
                     winReason = Some("the cop stepped in a trap!")
                     complete("You Lose! You stepped in a trap")
                   } else if (role == "thief" && !isMoveLegal(sourceNode.get, destination)) { // perturbed and original graph differ
+                    logger.info("Thief lost the game, they made a move not possible in original graph")
                     winner = Some("cop")
                     winReason = Some("the thief stepped in a trap!")
                     complete("You Lose! You stepped in a trap")
                   }else {
-                    // update shadows here
-
                     val response = generateResponse(role)
                     complete(response)
                   }
