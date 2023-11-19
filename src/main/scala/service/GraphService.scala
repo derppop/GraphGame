@@ -20,21 +20,12 @@ object GraphService {
     (node, shadowNode)
   }
 
-  def getAdjacentNodes(node: NodeObject): Array[NodeObject] = {
-    perturbedGraph.sm.successors(node).asScala.toArray
-  }
-
-  def canMove(sourceNode: NodeObject, destinationNodeId: Int): Option[NodeObject] = {
-    val adjacentNodes = getAdjacentNodes(sourceNode)
-    adjacentNodes.foreach{ node =>
-      if (node.id == destinationNodeId) {
-        return Some(node)
-      }
+  def getAdjacentNodes(node: NodeObject, checkOriginalGraph: Boolean = false): Array[NodeObject] = {
+    if (checkOriginalGraph) {
+      originalGraph.sm.successors(node).asScala.toArray
+    } else {
+      perturbedGraph.sm.successors(node).asScala.toArray
     }
-    None
   }
 
-  def gameEnded(thiefNode: NodeObject, copNode: NodeObject): Boolean = {
-    thiefNode == copNode
-  }
 }
