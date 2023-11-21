@@ -57,4 +57,4 @@ to end, any further request after the game ends will get a response saying the g
 POST request, sets all the games state values back to their initial values, allowing the game to be played again
 after a winner is chosen, the only thing that stays the same is the graph as it is not regenerated when the game restarts.
 
-[Live demo]()
+[Demo](https://youtu.be/mOnzSUxiwiA)
