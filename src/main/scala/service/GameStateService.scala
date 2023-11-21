@@ -76,12 +76,7 @@ object GameStateService {
 
   def canMove(sourceNode: NodeObject, destinationNodeId: Int): Option[NodeObject] = {
     val adjacentNodes = getAdjacentNodes(sourceNode)
-    adjacentNodes.foreach { node =>
-      if (node.id == destinationNodeId) {
-        return Some(node)
-      }
-    }
-    None
+    adjacentNodes.find { node => node.id == destinationNodeId}
   }
 
   def isMoveLegal(sourceNode: NodeObject, destination: String): Boolean = {

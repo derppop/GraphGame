@@ -51,7 +51,6 @@ assembly / mainClass := Some("app.Main")
 
 unmanagedBase := baseDirectory.value / "src" / "main" / "resources" / "lib"
 
-scalacOptions ++= Seq("-Ytasty-reader")
 
 libraryDependencies ++= commonDependencies
 

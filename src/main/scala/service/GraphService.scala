@@ -1,8 +1,10 @@
 package service
 
 import NetGraphAlgebraDefs.{GraphPerturbationAlgebra, NetGraph, NetModelAlgebra, NodeObject}
+
+import scala.annotation.tailrec
 import scala.util.Random
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object GraphService {
   // generate original and perturbed graph
@@ -15,9 +17,20 @@ object GraphService {
   val perturbedNodes: Array[NodeObject] = perturbedGraph.sm.nodes().asScala.toArray
 
   def getRandomNode: (Option[NodeObject], Option[NodeObject]) = {
-    val node: Option[NodeObject] = Some(perturbedNodes(Random.nextInt(perturbedNodes.length)))
-    val shadowNode: Option[NodeObject] = originalNodes.find(shadowNode => shadowNode.id == node.get.id)
-    (node, shadowNode)
+    @tailrec
+    def _getRandomNode(attempts: Int = 5): (Option[NodeObject], Option[NodeObject]) = {
+      if (attempts <= 0) return (None, None)
+
+      val node: Option[NodeObject] = Some(perturbedNodes(Random.nextInt(perturbedNodes.length)))
+      val shadowNode: Option[NodeObject] = originalNodes.find(shadowNode => shadowNode.id == node.get.id)
+
+      if (shadowNode.isDefined) {
+        (node, shadowNode)
+      } else {
+        _getRandomNode(attempts - 1)
+      }
+    }
+    _getRandomNode()
   }
 
   def getAdjacentNodes(node: NodeObject, checkOriginalGraph: Boolean = false): Array[NodeObject] = {
