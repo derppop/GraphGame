@@ -1,0 +1,8 @@
+Student: Joseph David
+
+=> No scalatests = -1%
+
+Great project structure and good solution. i would have liked to see some scalatests implemented as well.
+Great job overall!
+
+Final Grade: 19%
